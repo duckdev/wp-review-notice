@@ -1,0 +1,30 @@
+{
+  "name": "duckdev/wp-review-notice",
+  "description": "Simple library class to gently ask for a wp.org plugin review after a few days of plugin usage.",
+  "license": "GPL-2.0-or-later",
+  "type": "library",
+  "authors": [
+    {
+      "name": "Joel James",
+      "email": "me@joelsays.com",
+      "homepage": "https://duckdev.com"
+    }
+  ],
+  "keywords": [
+    "wordpress",
+    "reviews",
+    "notices"
+  ],
+  "support": {
+    "issues": "https://github.com/duckdev/wp-review-notice/issues/"
+  },
+  "require": {
+    "php": ">=5.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "DuckDev\\Reviews\\": "src"
+    }
+  },
+  "minimum-stability": "dev"
+}
