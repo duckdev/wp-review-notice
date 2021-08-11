@@ -219,17 +219,17 @@ class Notice {
 			</p>
 			<p>
 				<a href="https://wordpress.org/support/plugin/<?php echo esc_html( $this->slug ); ?>/reviews/#new-post" target="_blank">
-					<?php esc_html_e( 'Ok, you deserve it', $this->domain ); ?>
+					→ <?php esc_html_e( 'Ok, you deserve it', $this->domain ); ?>
 				</a>
 			</p>
 			<p>
 				<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'later' ) ); ?>">
-					<?php esc_html_e( 'Nope, maybe later', $this->domain ); ?>
+					→ <?php esc_html_e( 'Nope, maybe later', $this->domain ); ?>
 				</a>
 			</p>
 			<p>
 				<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'dismiss' ) ); ?>">
-					<?php esc_html_e( 'I already did', $this->domain ); ?>
+					→ <?php esc_html_e( 'I already did', $this->domain ); ?>
 				</a>
 			</p>
 		</div>
