@@ -547,17 +547,3 @@ class Notice {
 		return $this->prefix . '_reviews_' . $key;
 	}
 }
-
-$notice = \DuckDev\Reviews\Notice::get(
-	'my-plugin', // Plugin slug on wp.org (eg: hello-dolly).
-	'My Plugin', // Plugin name (eg: Hello Dolly).
-	array(
-		'days'          => 7, // default: 7 days.
-		'message'       => 'My custom message asking for review', // If you want to use different review notice message.
-		'action_labels' => array(
-			'review'  => 'Please review me', // Change review link label.
-			'later'   => 'I will review later', // Change review extension link.
-			'dismiss' => 'Nope', // No review label :(.
-		),
-	)
-);
