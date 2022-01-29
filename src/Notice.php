@@ -228,21 +228,21 @@ class Notice {
 			<?php if ( ! empty( $this->action_labels['review'] ) ) : ?>
 				<p>
 					<a href="https://wordpress.org/support/plugin/<?php echo esc_html( $this->slug ); ?>/reviews/#new-post" target="_blank">
-						→ <?php esc_html_e( 'Ok, you deserve it', $this->domain ); ?>
+						→ <?php echo $this->action_labels['review']; ?>
 					</a>
 				</p>
 			<?php endif; ?>
 			<?php if ( ! empty( $this->action_labels['later'] ) ) : ?>
 				<p>
 					<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'later' ) ); ?>">
-						→ <?php esc_html_e( 'Nope, maybe later', $this->domain ); ?>
+						→ <?php echo $this->action_labels['later']; ?>
 					</a>
 				</p>
 			<?php endif; ?>
 			<?php if ( ! empty( $this->action_labels['dismiss'] ) ) : ?>
 				<p>
 					<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'dismiss' ) ); ?>">
-						→ <?php esc_html_e( 'I already did', $this->domain ); ?>
+						→ <?php echo $this->action_labels['dismiss']; ?>
 					</a>
 				</p>
 			<?php endif; ?>
@@ -500,12 +500,12 @@ class Notice {
 		$options = wp_parse_args(
 			$options,
 			array(
-				'days'    => 7,
-				'screens' => array(),
-				'cap'     => 'manage_options',
-				'classes' => array(),
-				'domain'  => 'duckdev',
-				'actions' => array(),
+				'days'          => 7,
+				'screens'       => array(),
+				'cap'           => 'manage_options',
+				'classes'       => array(),
+				'domain'        => 'duckdev',
+				'action_labels' => array(),
 			)
 		);
 
