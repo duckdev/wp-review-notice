@@ -462,7 +462,7 @@ class Notice {
 		$this->screens = (array) $options['screens'];
 		$this->classes = (array) $options['classes'];
 		$this->domain  = (string) $options['domain'];
-		$this->prefix  = isset( $options['domain'] ) ? (string) $options['domain'] : str_replace( '-', '_', $this->slug );
+		$this->prefix  = isset( $options['prefix'] ) ? (string) $options['prefix'] : str_replace( '-', '_', $this->slug );
 	}
 
 	/**
