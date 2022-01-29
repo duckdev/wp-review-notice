@@ -92,6 +92,26 @@ class Notice {
 	private $classes = array( 'notice', 'notice-info' );
 
 	/**
+	 * Actions link texts.
+	 *
+	 * Adding extra items to the array will not do anything.
+	 *
+	 * @var array $actions
+	 *
+	 * @since 1.0.2
+	 */
+	private $action_labels = array();
+
+	/**
+	 * Main message of the notice.
+	 *
+	 * @var string $message
+	 *
+	 * @since 1.0.2
+	 */
+	private $message = '';
+
+	/**
 	 * Minimum capability for the user to see and dismiss notice.
 	 *
 	 * @see   https://wordpress.org/support/article/roles-and-capabilities/
@@ -181,57 +201,51 @@ class Notice {
 	 * Render the review notice.
 	 *
 	 * Review notice will be rendered only if all these conditions met:
-	 * > Current screen is an allowed screen (@see Noticee::in_screen())
-	 * > Current user has the required capability (@see Noticee::is_capable())
+	 * > Current screen is an allowed screen (@since  1.0.0
+	 *
+	 * @access public
+	 *
+	 * @see    Noticee::is_capable())
 	 * > It's time to show the notice (@see Noticee::is_time())
 	 * > User has not dismissed the notice (@see Noticee::is_dismissed())
 	 *
-	 * @since  1.0.0
-	 * @access public
-	 *
-	 * @return void
+	 * @see    Noticee::in_screen())
+	 * > Current user has the required capability (@return void
 	 */
 	public function render() {
 		// Check conditions.
-		if ( ! $this->can_show() ) {
+		if ( ! $this->can_show() && ! empty( $this->message ) ) {
 			return;
 		}
-
-		// Get current user data.
-		$current_user = wp_get_current_user();
-		// Make sure we have name.
-		$name = empty( $current_user->display_name ) ? __( 'friend', $this->domain ) : ucwords( $current_user->display_name );
 		?>
 
 		<div
 			id="duckdev-reviews-<?php echo esc_attr( $this->slug ); ?>"
 			class="<?php echo esc_attr( $this->get_classes() ); ?>">
 			<p>
-				<?php
-				printf(
-				// translators: %1$s Current user's name, %2$s Plugin name, %3$d.
-					esc_html__( 'Hey %1$s, I noticed you\'ve been using %2$s for more than %3$d days – that’s awesome! Could you please do me a BIG favor and give it a 5-star rating on WordPress? Just to help us spread the word and boost our motivation.', $this->domain ),
-					esc_html( $name ),
-					'<strong>' . esc_html( $this->name ) . '</strong>',
-					(int) $this->days
-				);
-				?>
+				<?php echo $this->message; ?>
 			</p>
-			<p>
-				<a href="https://wordpress.org/support/plugin/<?php echo esc_html( $this->slug ); ?>/reviews/#new-post" target="_blank">
-					→ <?php esc_html_e( 'Ok, you deserve it', $this->domain ); ?>
-				</a>
-			</p>
-			<p>
-				<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'later' ) ); ?>">
-					→ <?php esc_html_e( 'Nope, maybe later', $this->domain ); ?>
-				</a>
-			</p>
-			<p>
-				<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'dismiss' ) ); ?>">
-					→ <?php esc_html_e( 'I already did', $this->domain ); ?>
-				</a>
-			</p>
+			<?php if ( ! empty( $this->action_labels['review'] ) ) : ?>
+				<p>
+					<a href="https://wordpress.org/support/plugin/<?php echo esc_html( $this->slug ); ?>/reviews/#new-post" target="_blank">
+						→ <?php esc_html_e( 'Ok, you deserve it', $this->domain ); ?>
+					</a>
+				</p>
+			<?php endif; ?>
+			<?php if ( ! empty( $this->action_labels['later'] ) ) : ?>
+				<p>
+					<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'later' ) ); ?>">
+						→ <?php esc_html_e( 'Nope, maybe later', $this->domain ); ?>
+					</a>
+				</p>
+			<?php endif; ?>
+			<?php if ( ! empty( $this->action_labels['dismiss'] ) ) : ?>
+				<p>
+					<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'dismiss' ) ); ?>">
+						→ <?php esc_html_e( 'I already did', $this->domain ); ?>
+					</a>
+				</p>
+			<?php endif; ?>
 		</div>
 		<?php
 	}
@@ -362,17 +376,57 @@ class Notice {
 	}
 
 	/**
+	 * Get the default notice message for the review.
+	 *
+	 * This will be used only if the message is not passed through
+	 * options array. You can also use `duckdev_reviews_notice_message` filter to modify
+	 * the notice message.
+	 * NOTE: We will not escape anything. You should do it yourself if you are adding a
+	 * custom message.
+	 *
+	 * @since  1.0.2
+	 * @access protected
+	 *
+	 * @return string
+	 */
+	protected function get_message() {
+		// Get current user data.
+		$current_user = wp_get_current_user();
+		// Make sure we have name.
+		$name = empty( $current_user->display_name ) ? __( 'friend', $this->domain ) : ucwords( $current_user->display_name );
+
+		$message = sprintf(
+		// translators: %1$s Current user's name, %2$s Plugin name, %3$d.
+			esc_html__( 'Hey %1$s, I noticed you\'ve been using %2$s for more than %3$d days – that’s awesome! Could you please do me a BIG favor and give it a 5-star rating on WordPress? Just to help us spread the word and boost our motivation.', $this->domain ),
+			esc_html( $name ),
+			'<strong>' . esc_html( $this->name ) . '</strong>',
+			(int) $this->days
+		);
+
+		/**
+		 * Filter to modify review notice message.
+		 *
+		 * @param string $message Notice message.
+		 * @param int    $days    Days to show review.
+		 *
+		 * @since 1.0.2
+		 */
+		return apply_filters( 'duckdev_reviews_notice_message', $message, $this->days );
+	}
+
+	/**
 	 * Check if we can show the notice.
 	 *
-	 * > Current screen is an allowed screen (@see Noticee::in_screen())
-	 * > Current user has the required capability (@see Noticee::is_capable())
+	 * > Current screen is an allowed screen (@since  1.0.0
+	 *
+	 * @access protected
+	 *
+	 * @see    Noticee::is_capable())
 	 * > It's time to show the notice (@see Noticee::is_time())
 	 * > User has not dismissed the notice (@see Noticee::is_dismissed())
 	 *
-	 * @since  1.0.0
-	 * @access protected
-	 *
-	 * @return bool
+	 * @see    Noticee::in_screen())
+	 * > Current user has the required capability (@return bool
 	 */
 	protected function can_show() {
 		return (
@@ -451,6 +505,17 @@ class Notice {
 				'cap'     => 'manage_options',
 				'classes' => array(),
 				'domain'  => 'duckdev',
+				'actions' => array(),
+			)
+		);
+
+		// Action button/link labels.
+		$this->action_labels = wp_parse_args(
+			(array) $options['action_labels'],
+			array(
+				'review'  => esc_html__( 'Ok, you deserve it', $this->domain ),
+				'later'   => esc_html__( 'Nope, maybe later', $this->domain ),
+				'dismiss' => esc_html__( 'I already did', $this->domain ),
 			)
 		);
 
@@ -463,6 +528,7 @@ class Notice {
 		$this->classes = (array) $options['classes'];
 		$this->domain  = (string) $options['domain'];
 		$this->prefix  = isset( $options['prefix'] ) ? (string) $options['prefix'] : str_replace( '-', '_', $this->slug );
+		$this->message = empty( $options['message'] ) ? $this->get_message() : (string) $options['message'];
 	}
 
 	/**
@@ -481,3 +547,17 @@ class Notice {
 		return $this->prefix . '_reviews_' . $key;
 	}
 }
+
+$notice = \DuckDev\Reviews\Notice::get(
+	'my-plugin', // Plugin slug on wp.org (eg: hello-dolly).
+	'My Plugin', // Plugin name (eg: Hello Dolly).
+	array(
+		'days'          => 7, // default: 7 days.
+		'message'       => 'My custom message asking for review', // If you want to use different review notice message.
+		'action_labels' => array(
+			'review'  => 'Please review me', // Change review link label.
+			'later'   => 'I will review later', // Change review extension link.
+			'dismiss' => 'Nope', // No review label :(.
+		),
+	)
+);
