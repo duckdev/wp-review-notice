@@ -456,7 +456,7 @@ class Notice {
 		}
 
 		// Get the current review action.
-		$action = filter_input( INPUT_GET, $this->key( 'action' ), FILTER_SANITIZE_STRING );
+		$action = filter_input( INPUT_GET, $this->key( 'action' ), FILTER_UNSAFE_RAW );
 
 		switch ( $action ) {
 			case 'later':
