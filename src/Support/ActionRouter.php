@@ -131,7 +131,7 @@ class ActionRouter {
 	 * @return void
 	 */
 	public function dispatch(): void {
-		if ( ! $this->screen->isAllowed( $this->config->screens() ) ) {
+		if ( ! $this->screen->is_allowed( $this->config->screens() ) ) {
 			return;
 		}
 

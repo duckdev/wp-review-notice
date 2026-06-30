@@ -20,37 +20,47 @@ final class NoticeTest extends TestCase {
 			'timer'    => new class( $due ) implements TimerStoreInterface {
 				public bool $due;
 				public int $started = 0;
-				public function __construct( bool $due ) { $this->due = $due; }
-				public function start( int $days ): void { $this->started = $days; }
-				public function isDue(): bool { return $this->due; }
+				public function __construct( bool $due ) {
+					$this->due = $due; }
+				public function start( int $days ): void {
+					$this->started = $days; }
+				public function is_due(): bool {
+					return $this->due; }
 				public function defer( int $days ): void {}
 			},
 			'dismiss'  => new class( $dismissed ) implements DismissalStoreInterface {
 				public bool $is;
-				public function __construct( bool $is ) { $this->is = $is; }
-				public function isDismissed(): bool { return $this->is; }
+				public function __construct( bool $is ) {
+					$this->is = $is; }
+				public function is_dismissed(): bool {
+					return $this->is; }
 				public function dismiss(): void {}
 			},
 			'screen'   => new class( $screen ) implements ScreenResolverInterface {
 				public bool $ok;
-				public function __construct( bool $ok ) { $this->ok = $ok; }
-				public function isAllowed( array $allowed ): bool { return $this->ok; }
+				public function __construct( bool $ok ) {
+					$this->ok = $ok; }
+				public function is_allowed( array $allowed ): bool {
+					return $this->ok; }
 			},
 			'cap'      => new class( $cap ) implements CapabilityCheckerInterface {
 				public bool $ok;
-				public function __construct( bool $ok ) { $this->ok = $ok; }
-				public function can( string $capability ): bool { return $this->ok; }
+				public function __construct( bool $ok ) {
+					$this->ok = $ok; }
+				public function can( string $capability ): bool {
+					return $this->ok; }
 			},
-			'renderer' => new class implements RendererInterface {
+			'renderer' => new class() implements RendererInterface {
 				public int $calls = 0;
-				public function render( Config $config, KeyPrefixer $prefixer ): void { ++$this->calls; }
+				public function render( Config $config, KeyPrefixer $prefixer ): void {
+					++$this->calls; }
 			},
 		);
 	}
 
 	private function notice( array $f ): Notice {
 		return new Notice(
-			Config::fromArray( 'my-plugin', 'My Plugin' ),
+			Config::from_array( 'my-plugin', 'My Plugin' ),
 			$f['timer'],
 			$f['dismiss'],
 			$f['screen'],
@@ -61,7 +71,7 @@ final class NoticeTest extends TestCase {
 
 	public function test_can_show_when_all_conditions_met(): void {
 		$f = $this->fakes();
-		$this->assertTrue( $this->notice( $f )->canShow() );
+		$this->assertTrue( $this->notice( $f )->can_show() );
 	}
 
 	public function test_render_outputs_when_visible(): void {

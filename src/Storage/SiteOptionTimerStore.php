@@ -13,7 +13,7 @@
  *   - {@see start} is idempotent — only writes when nothing is
  *     scheduled yet. Called once from the orchestrator's
  *     `register()`.
- *   - {@see isDue} is a pure read. `canShow()` can call it on every
+ *   - {@see is_due} is a pure read. `can_show()` can call it on every
  *     request without mutating state.
  *   - {@see defer} unconditionally overwrites; that's the explicit
  *     "later" action.
@@ -66,6 +66,10 @@ class SiteOptionTimerStore implements TimerStoreInterface {
 	 * is stored. That guarantee is what lets the orchestrator call
 	 * this on every admin request from `register()` without
 	 * resetting the clock for users who already have a schedule.
+	 *
+	 * @param int $days Days from now to schedule the first show.
+	 *
+	 * @return void
 	 */
 	public function start( int $days ): void {
 		$key = $this->prefixer->key( 'time' );
@@ -79,13 +83,15 @@ class SiteOptionTimerStore implements TimerStoreInterface {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * @return bool
 	 */
-	public function isDue(): bool {
+	public function is_due(): bool {
 		$time = get_site_option( $this->prefixer->key( 'time' ) );
 
 		// Unseeded schedule → not due. `start()` is expected to run
-		// before `isDue()` in normal lifecycle; returning false here
-		// is the safe default if a consumer reaches for `canShow()`
+		// before `is_due()` in normal lifecycle; returning false here
+		// is the safe default if a consumer reaches for `can_show()`
 		// before registering.
 		if ( empty( $time ) ) {
 			return false;
@@ -96,6 +102,10 @@ class SiteOptionTimerStore implements TimerStoreInterface {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * @param int $days Days from now to defer the next show.
+	 *
+	 * @return void
 	 */
 	public function defer( int $days ): void {
 		update_site_option(

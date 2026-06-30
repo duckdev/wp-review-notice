@@ -55,7 +55,7 @@ class UserMetaDismissalStore implements DismissalStoreInterface {
 	/**
 	 * {@inheritDoc}
 	 */
-	public function isDismissed(): bool {
+	public function is_dismissed(): bool {
 		$user_id = get_current_user_id();
 
 		// Logged-out requests can never have a dismissal recorded —

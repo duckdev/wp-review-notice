@@ -21,7 +21,7 @@ final class ActionRouterTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
-		$this->config   = Config::fromArray( 'my-plugin', 'My Plugin', array( 'days' => 7 ) );
+		$this->config   = Config::from_array( 'my-plugin', 'My Plugin', array( 'days' => 7 ) );
 		$this->prefixer = new KeyPrefixer( $this->config->prefix() );
 	}
 
@@ -33,38 +33,46 @@ final class ActionRouterTest extends TestCase {
 	): ActionRouter {
 		$screen = new class( $screen_allowed ) implements ScreenResolverInterface {
 			private bool $allowed;
-			public function __construct( bool $allowed ) { $this->allowed = $allowed; }
-			public function isAllowed( array $allowed ): bool { return $this->allowed; }
+			public function __construct( bool $allowed ) {
+				$this->allowed = $allowed; }
+			public function is_allowed( array $allowed ): bool {
+				return $this->allowed; }
 		};
 
 		$capability = new class( $can ) implements CapabilityCheckerInterface {
 			private bool $can;
-			public function __construct( bool $can ) { $this->can = $can; }
-			public function can( string $capability ): bool { return $this->can; }
+			public function __construct( bool $can ) {
+				$this->can = $can; }
+			public function can( string $capability ): bool {
+				return $this->can; }
 		};
 
 		return new ActionRouter( $this->config, $this->prefixer, $timer, $dismissal, $screen, $capability );
 	}
 
 	private function spyStores(): array {
-		$timer = new class implements TimerStoreInterface {
+		$timer = new class() implements TimerStoreInterface {
 			public int $deferred = 0;
 			public function start( int $days ): void {}
-			public function isDue(): bool { return false; }
-			public function defer( int $days ): void { $this->deferred = $days; }
+			public function is_due(): bool {
+				return false; }
+			public function defer( int $days ): void {
+				$this->deferred = $days; }
 		};
 
-		$dismissal = new class implements DismissalStoreInterface {
+		$dismissal = new class() implements DismissalStoreInterface {
 			public bool $dismissed = false;
-			public function isDismissed(): bool { return $this->dismissed; }
-			public function dismiss(): void { $this->dismissed = true; }
+			public function is_dismissed(): bool {
+				return $this->dismissed; }
+			public function dismiss(): void {
+				$this->dismissed = true; }
 		};
 
 		return array( $timer, $dismissal );
 	}
 
 	public function test_dispatch_defers_on_later(): void {
-		[ $timer, $dismissal ] = $this->spyStores();
+		[ $timer, $dismissal ]                    = $this->spyStores();
 		$_GET[ $this->prefixer->key( 'action' ) ] = 'later';
 
 		$this->router( $timer, $dismissal )->dispatch();
@@ -76,7 +84,7 @@ final class ActionRouterTest extends TestCase {
 	}
 
 	public function test_dispatch_dismisses_on_dismiss(): void {
-		[ $timer, $dismissal ] = $this->spyStores();
+		[ $timer, $dismissal ]                    = $this->spyStores();
 		$_GET[ $this->prefixer->key( 'action' ) ] = 'dismiss';
 
 		$this->router( $timer, $dismissal )->dispatch();
@@ -97,7 +105,7 @@ final class ActionRouterTest extends TestCase {
 	}
 
 	public function test_dispatch_gated_by_capability(): void {
-		[ $timer, $dismissal ] = $this->spyStores();
+		[ $timer, $dismissal ]                    = $this->spyStores();
 		$_GET[ $this->prefixer->key( 'action' ) ] = 'dismiss';
 
 		$this->router( $timer, $dismissal, true, false )->dispatch();
@@ -108,7 +116,7 @@ final class ActionRouterTest extends TestCase {
 	}
 
 	public function test_dispatch_gated_by_screen(): void {
-		[ $timer, $dismissal ] = $this->spyStores();
+		[ $timer, $dismissal ]                    = $this->spyStores();
 		$_GET[ $this->prefixer->key( 'action' ) ] = 'dismiss';
 
 		$this->router( $timer, $dismissal, false, true )->dispatch();

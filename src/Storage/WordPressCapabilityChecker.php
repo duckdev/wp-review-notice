@@ -28,6 +28,10 @@ class WordPressCapabilityChecker implements CapabilityCheckerInterface {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * @param string $capability Capability slug.
+	 *
+	 * @return bool
 	 */
 	public function can( string $capability ): bool {
 		return current_user_can( $capability );

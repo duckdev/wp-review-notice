@@ -29,8 +29,12 @@ class AdminScreenResolver implements ScreenResolverInterface {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * @param array<int, string> $allowed Allow-list of screen IDs.
+	 *
+	 * @return bool
 	 */
-	public function isAllowed( array $allowed ): bool {
+	public function is_allowed( array $allowed ): bool {
 		// Empty allow-list keeps v1's "show everywhere" semantics.
 		if ( empty( $allowed ) ) {
 			return true;

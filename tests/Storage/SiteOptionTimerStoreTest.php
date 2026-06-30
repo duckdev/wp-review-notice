@@ -35,26 +35,26 @@ final class SiteOptionTimerStoreTest extends TestCase {
 	public function test_is_due_false_when_unseeded(): void {
 		Functions\expect( 'get_site_option' )->once()->andReturn( false );
 
-		$this->assertFalse( $this->store()->isDue() );
+		$this->assertFalse( $this->store()->is_due() );
 	}
 
 	public function test_is_due_true_when_stored_timestamp_in_past(): void {
 		Functions\expect( 'get_site_option' )->once()->andReturn( time() - 10 );
 
-		$this->assertTrue( $this->store()->isDue() );
+		$this->assertTrue( $this->store()->is_due() );
 	}
 
 	public function test_is_due_false_when_stored_timestamp_in_future(): void {
 		Functions\expect( 'get_site_option' )->once()->andReturn( time() + 10000 );
 
-		$this->assertFalse( $this->store()->isDue() );
+		$this->assertFalse( $this->store()->is_due() );
 	}
 
 	public function test_is_due_does_not_mutate_storage(): void {
 		Functions\expect( 'get_site_option' )->once()->andReturn( false );
 		Functions\expect( 'update_site_option' )->never();
 
-		$this->store()->isDue();
+		$this->store()->is_due();
 	}
 
 	public function test_defer_writes_future_timestamp(): void {

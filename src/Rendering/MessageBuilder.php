@@ -5,10 +5,11 @@
  * Generates the "Hey {user}, you've been using {plugin} for…" copy
  * when the consumer didn't pass a custom message. Lives in its own
  * class so consumers can replace the copy strategy (e.g. localised
- * variants, A/B variations) by swapping a single collaborator.
+ * variants, A/B variations) by swapping a single collaborator on
+ * the Notice constructor.
  *
  * The bundled `duckdev_reviews_notice_message` filter is preserved
- * verbatim so existing customisations on consumer sites keep firing.
+ * so existing customisations on consumer sites keep firing.
  *
  * @link       https://duckdev.com/
  * @license    http://www.gnu.org/licenses/ GNU General Public License
@@ -42,12 +43,13 @@ class MessageBuilder {
 	 *
 	 * @param Config $config Resolved notice configuration.
 	 *
-	 * @return string HTML — caller is responsible for not double-escaping.
+	 * @return string HTML message — the renderer runs it through
+	 *                `wp_kses_post()` before output.
 	 */
 	public function build( Config $config ): string {
 		$message = '' !== $config->message()
 			? $config->message()
-			: $this->defaultMessage( $config );
+			: $this->default_message( $config );
 
 		/**
 		 * Filter to modify review notice message.
@@ -63,8 +65,13 @@ class MessageBuilder {
 	/**
 	 * Build the default bundled copy.
 	 *
-	 * Pulled out so consumers subclassing or wrapping this class can
-	 * reuse the default and only tweak around it.
+	 * Pulled out so consumers subclassing or wrapping this class
+	 * can reuse the default and only tweak around it.
+	 *
+	 * Strings are translated against WordPress core's `default`
+	 * domain — the library can't ship translations for every
+	 * consumer locale, and the `duckdev_reviews_notice_message`
+	 * filter is the supported way to replace the copy entirely.
 	 *
 	 * @since 2.0.0
 	 *
@@ -72,22 +79,21 @@ class MessageBuilder {
 	 *
 	 * @return string
 	 */
-	protected function defaultMessage( Config $config ): string {
-		$domain       = $config->domain();
+	protected function default_message( Config $config ): string {
 		$current_user = wp_get_current_user();
 		$display_name = isset( $current_user->display_name ) ? (string) $current_user->display_name : '';
 
 		// Friendly fallback when the user has no display name set —
 		// "Hey , I noticed…" looks broken in the wild.
 		$name = '' === $display_name
-			? __( 'friend', $domain )
+			? __( 'friend', 'default' )
 			: ucwords( $display_name );
 
 		return sprintf(
 			// translators: %1$s Current user's name, %2$s Plugin name, %3$d Days.
 			esc_html__(
 				'Hey %1$s, I noticed you\'ve been using %2$s for more than %3$d days – that’s awesome! Could you please do me a BIG favor and give it a 5-star rating on WordPress? Just to help us spread the word and boost our motivation.',
-				$domain
+				'default'
 			),
 			esc_html( $name ),
 			'<strong>' . esc_html( $config->name() ) . '</strong>',

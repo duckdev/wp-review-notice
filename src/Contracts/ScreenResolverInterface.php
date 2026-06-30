@@ -37,5 +37,5 @@ interface ScreenResolverInterface {
 	 *
 	 * @return bool
 	 */
-	public function isAllowed( array $allowed ): bool;
+	public function is_allowed( array $allowed ): bool;
 }

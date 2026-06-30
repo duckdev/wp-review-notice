@@ -188,12 +188,12 @@ class Notice {
 	 *
 	 * @param string               $slug    wp.org plugin slug.
 	 * @param string               $name    Plugin display name.
-	 * @param array<string, mixed> $options Optional overrides — see {@see Config::fromArray()}.
+	 * @param array<string, mixed> $options Optional overrides — see {@see Config::from_array()}.
 	 *
 	 * @return self
 	 */
 	public static function create( string $slug, string $name, array $options = array() ): self {
-		return new self( Config::fromArray( $slug, $name, $options ) );
+		return new self( Config::from_array( $slug, $name, $options ) );
 	}
 
 	/**
@@ -237,7 +237,7 @@ class Notice {
 	 * @return void
 	 */
 	public function render(): void {
-		if ( ! $this->canShow() ) {
+		if ( ! $this->can_show() ) {
 			return;
 		}
 
@@ -257,8 +257,8 @@ class Notice {
 	 *
 	 * @return bool
 	 */
-	public function canShow(): bool {
-		if ( ! $this->screen->isAllowed( $this->config->screens() ) ) {
+	public function can_show(): bool {
+		if ( ! $this->screen->is_allowed( $this->config->screens() ) ) {
 			return false;
 		}
 
@@ -266,11 +266,11 @@ class Notice {
 			return false;
 		}
 
-		if ( ! $this->timer->isDue() ) {
+		if ( ! $this->timer->is_due() ) {
 			return false;
 		}
 
-		return ! $this->dismissal->isDismissed();
+		return ! $this->dismissal->is_dismissed();
 	}
 
 	/**

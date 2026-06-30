@@ -34,7 +34,7 @@ interface DismissalStoreInterface {
 	 *
 	 * @return bool
 	 */
-	public function isDismissed(): bool;
+	public function is_dismissed(): bool;
 
 	/**
 	 * Record a dismissal for the current user.

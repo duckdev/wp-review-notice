@@ -9,7 +9,7 @@
  * that do not want one more `wp_options` row.
  *
  * The interface is deliberately split into a pure read
- * ({@see isDue}) and explicit lifecycle calls
+ * ({@see is_due}) and explicit lifecycle calls
  * ({@see start} and {@see defer}) so condition checks never have
  * side-effects on storage. The orchestrator seeds the schedule once
  * from its `register()` call; everything else just reads.
@@ -59,7 +59,7 @@ interface TimerStoreInterface {
 	 *
 	 * @return bool
 	 */
-	public function isDue(): bool;
+	public function is_due(): bool;
 
 	/**
 	 * Push the next show-time further into the future.

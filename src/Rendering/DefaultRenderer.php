@@ -62,6 +62,11 @@ class DefaultRenderer implements RendererInterface {
 
 	/**
 	 * {@inheritDoc}
+	 *
+	 * @param Config      $config   Resolved notice configuration.
+	 * @param KeyPrefixer $prefixer Key prefixer used for the action GET param.
+	 *
+	 * @return void
 	 */
 	public function render( Config $config, KeyPrefixer $prefixer ): void {
 		$message = $this->messages->build( $config );
@@ -73,7 +78,7 @@ class DefaultRenderer implements RendererInterface {
 			return;
 		}
 
-		$labels     = $config->actionLabels();
+		$labels     = $config->action_labels();
 		$action_key = $prefixer->key( 'action' );
 		$review_url = 'https://wordpress.org/support/plugin/' . $config->slug() . '/reviews/#new-post';
 		?>
