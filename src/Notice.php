@@ -1,549 +1,297 @@
 <?php
 /**
- * Helper library to as for a wp.org review.
+ * Review notice container / library entry point.
  *
- * Review notice will be shown using WordPress admin notices after
- * a specified time of plugin/theme use.
- * This is mainly developed to reuse on my plugins but anyone can
- * use it as a library.
+ * Single class consumers interact with directly. It wires up:
  *
- * @author     Joel James <me@joelsays.com>
- * @license    http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- * @copyright  Copyright (c) 2021, Joel James
- * @link       https://github.com/duckdev/wp-review-notice/
- * @package    DuckDev
- * @subpackage Pages
+ *   KeyPrefixer (prefix + key naming)
+ *     ├── SiteOptionTimerStore        (next show-time persistence)
+ *     ├── UserMetaDismissalStore      (per-user dismissal flag)
+ *     ├── AdminScreenResolver         (current screen check)
+ *     ├── WordPressCapabilityChecker  (capability gate)
+ *     ├── ActionRouter                (later / dismiss GET dispatch)
+ *     └── DefaultRenderer + MessageBuilder (HTML output)
+ *
+ * Construction has no side effects beyond holding references — the
+ * actual WordPress hooks are registered in {@see register()}. That
+ * lets tests instantiate the container without polluting the global
+ * hook system.
+ *
+ * Each container instance is scoped to a single plugin slug. Two
+ * consumers using this library on the same site stay isolated
+ * because their option keys, user meta keys, GET param names and
+ * notice IDs are all derived from the prefix.
+ *
+ * Typical use:
+ *
+ *   \DuckDev\Reviews\Notice::create( 'my-plugin', 'My Plugin' )
+ *       ->register();
+ *
+ * Consumers that need to swap a collaborator (custom storage, a
+ * block-editor renderer, a stubbed capability checker for tests)
+ * reach for the constructor directly.
+ *
+ * @link    https://github.com/duckdev/wp-review-notice
+ * @license http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ * @author  Joel James <me@joelsays.com>
+ * @since   2.0.0
+ * @package Reviews
  */
 
 namespace DuckDev\Reviews;
 
-// Should be called only by WordPress.
+// If this file is called directly, abort.
 defined( 'WPINC' ) || die;
+
+use DuckDev\Reviews\Contracts\CapabilityCheckerInterface;
+use DuckDev\Reviews\Contracts\DismissalStoreInterface;
+use DuckDev\Reviews\Contracts\RendererInterface;
+use DuckDev\Reviews\Contracts\ScreenResolverInterface;
+use DuckDev\Reviews\Contracts\TimerStoreInterface;
+use DuckDev\Reviews\Rendering\DefaultRenderer;
+use DuckDev\Reviews\Storage\AdminScreenResolver;
+use DuckDev\Reviews\Storage\SiteOptionTimerStore;
+use DuckDev\Reviews\Storage\UserMetaDismissalStore;
+use DuckDev\Reviews\Storage\WordPressCapabilityChecker;
+use DuckDev\Reviews\Support\ActionRouter;
+use DuckDev\Reviews\Support\Config;
+use DuckDev\Reviews\Support\KeyPrefixer;
 
 /**
  * Class Notice.
- *
- * Main class that handles review notice.
- *
- * @package DuckDev\Reviews
  */
 class Notice {
 
 	/**
-	 * Prefix for all options and keys.
+	 * Resolved configuration for this notice instance.
 	 *
-	 * Override only when required.
+	 * @since 2.0.0
 	 *
-	 * @var string $prefix
-	 *
-	 * @since 1.0.0
+	 * @var Config
 	 */
-	private $prefix = '';
+	private Config $config;
 
 	/**
-	 * Plugin name to show in review.
+	 * Shared key prefixer.
 	 *
-	 * @var string $name
+	 * @since 2.0.0
 	 *
-	 * @since 1.0.0
+	 * @var KeyPrefixer
 	 */
-	private $name = '';
+	private KeyPrefixer $prefixer;
 
 	/**
-	 * Plugin slug in https://wordpress.org/plugins/{slug}.
+	 * Timer (show-time) store.
 	 *
-	 * @var string $slug
+	 * @since 2.0.0
 	 *
-	 * @since 1.0.0
+	 * @var TimerStoreInterface
 	 */
-	private $slug = '';
+	private TimerStoreInterface $timer;
 
 	/**
-	 * Minimum no. of days to show the notice after.
+	 * Per-user dismissal store.
 	 *
-	 * Currently we support only days.
+	 * @since 2.0.0
 	 *
-	 * @var int $days
-	 *
-	 * @since 1.0.0
+	 * @var DismissalStoreInterface
 	 */
-	private $days = 7;
+	private DismissalStoreInterface $dismissal;
 
 	/**
-	 * WP admin page screen IOs to show notice in.
+	 * Current-screen resolver.
 	 *
-	 * If it's empty, we will show it on all pages.
+	 * @since 2.0.0
 	 *
-	 * @var array $screens
-	 *
-	 * @since 1.0.0
+	 * @var ScreenResolverInterface
 	 */
-	private $screens = array();
+	private ScreenResolverInterface $screen;
 
 	/**
-	 * Notice classes to set additional classes.
+	 * Capability checker.
 	 *
-	 * By default we use WP info notice class.
+	 * @since 2.0.0
 	 *
-	 * @var array $classes
-	 *
-	 * @since 1.0.0
+	 * @var CapabilityCheckerInterface
 	 */
-	private $classes = array( 'notice', 'notice-info' );
+	private CapabilityCheckerInterface $capability;
 
 	/**
-	 * Actions link texts.
+	 * Notice renderer.
 	 *
-	 * Adding extra items to the array will not do anything.
+	 * @since 2.0.0
 	 *
-	 * @var array $actions
-	 *
-	 * @since 1.0.2
+	 * @var RendererInterface
 	 */
-	private $action_labels = array();
+	private RendererInterface $renderer;
 
 	/**
-	 * Main message of the notice.
+	 * Action router used by the admin_init hook.
 	 *
-	 * @var string $message
+	 * @since 2.0.0
 	 *
-	 * @since 1.0.2
+	 * @var ActionRouter
 	 */
-	private $message = '';
+	private ActionRouter $router;
 
 	/**
-	 * Minimum capability for the user to see and dismiss notice.
+	 * Constructor.
 	 *
-	 * @see   https://wordpress.org/support/article/roles-and-capabilities/
+	 * All collaborators are optional — when omitted the library
+	 * falls back to its bundled WordPress-backed implementations.
+	 * This is the seam tests reach for: pass in-memory fakes here
+	 * and the notice runs without touching the database.
 	 *
-	 * @var string $cap
+	 * @since 2.0.0
 	 *
-	 * @since 1.0.0
+	 * @param Config                          $config     Resolved configuration.
+	 * @param TimerStoreInterface|null        $timer      Optional timer store.
+	 * @param DismissalStoreInterface|null    $dismissal  Optional dismissal store.
+	 * @param ScreenResolverInterface|null    $screen     Optional screen resolver.
+	 * @param CapabilityCheckerInterface|null $capability Optional capability checker.
+	 * @param RendererInterface|null          $renderer   Optional renderer.
 	 */
-	private $cap = 'manage_options';
+	public function __construct(
+		Config $config,
+		?TimerStoreInterface $timer = null,
+		?DismissalStoreInterface $dismissal = null,
+		?ScreenResolverInterface $screen = null,
+		?CapabilityCheckerInterface $capability = null,
+		?RendererInterface $renderer = null
+	) {
+		$this->config     = $config;
+		$this->prefixer   = new KeyPrefixer( $config->prefix() );
+		$this->timer      = $timer ?? new SiteOptionTimerStore( $this->prefixer );
+		$this->dismissal  = $dismissal ?? new UserMetaDismissalStore( $this->prefixer );
+		$this->screen     = $screen ?? new AdminScreenResolver();
+		$this->capability = $capability ?? new WordPressCapabilityChecker();
+		$this->renderer   = $renderer ?? new DefaultRenderer();
+		$this->router     = new ActionRouter(
+			$this->config,
+			$this->prefixer,
+			$this->timer,
+			$this->dismissal,
+			$this->screen,
+			$this->capability
+		);
+	}
 
 	/**
-	 * Text domain for translations.
+	 * Convenience factory.
 	 *
-	 * @var string $domain
+	 * Builds a Config from a loose options array and hands back a
+	 * wired Notice. Consumers are expected to call
+	 * {@see register()} themselves so the wiring decision (and the
+	 * hook timing) stays explicit in their code.
 	 *
-	 * @since 1.0.0
+	 * @since 2.0.0
+	 *
+	 * @param string               $slug    wp.org plugin slug.
+	 * @param string               $name    Plugin display name.
+	 * @param array<string, mixed> $options Optional overrides — see {@see Config::fromArray()}.
+	 *
+	 * @return self
 	 */
-	private $domain = '';
+	public static function create( string $slug, string $name, array $options = array() ): self {
+		return new self( Config::fromArray( $slug, $name, $options ) );
+	}
 
 	/**
-	 * Create new notice instance with provided options.
+	 * Register the WordPress hooks that drive this notice.
 	 *
-	 * Do not use any hooks to run these functions because
-	 * we don't know in which hook and priority everyone is
-	 * going to initialize this notice.
+	 * Idempotent across page loads — repeated registrations on the
+	 * same request are a consumer bug, but harmless. The call also
+	 * seeds the show-time schedule via the timer store so the very
+	 * first eligible request can already see the notice.
 	 *
-	 * @param string $slug    WP.org slug for plugin.
-	 * @param string $name    Name of plugin.
-	 * @param array  $options Array of options (@see Notice::get()).
-	 *
-	 * @since  4.0.0
-	 * @access private
+	 * @since 2.0.0
 	 *
 	 * @return void
 	 */
-	private function __construct( $slug, $name, array $options ) {
-		// Only for admin side.
-		if ( is_admin() ) {
-			// Setup options.
-			$this->setup( $slug, $name, $options );
+	public function register(): void {
+		// Seed the timer the moment the consumer wires the notice
+		// up. The store implementation guarantees this is a no-op
+		// when a schedule is already in place.
+		$this->timer->start( $this->config->days() );
 
-			// Process actions.
-			$this->actions();
-		}
+		// Dispatch later/dismiss before the notice hook runs so a
+		// click takes effect on the same page-load.
+		add_action( 'admin_init', array( $this->router, 'dispatch' ) );
+		add_action( 'admin_notices', array( $this, 'render' ) );
+		add_action( 'network_admin_notices', array( $this, 'render' ) );
 	}
 
 	/**
-	 * Create and get new notice instance.
+	 * Render the notice if all show-conditions are met.
 	 *
-	 * Use this to setup new plugin notice to avoid multiple instances
-	 * of same plugin notice.
-	 * If you provide wrong slug, please note we will still link to the
-	 * wrong wp.org plugin page for reviews.
+	 * Conditions (all must be true):
 	 *
-	 * @param string $slug    WP.org slug for plugin.
-	 * @param string $name    Name of plugin.
-	 * @param array  $options {
-	 *                        Array of options.
+	 *   1. Current screen is in the configured allow-list (or the
+	 *      list is empty).
+	 *   2. Current user has the configured capability.
+	 *   3. The scheduled show-time has been reached.
+	 *   4. The current user has not dismissed the notice.
 	 *
-	 * @type int     $days    No. of days after the notice is shown.
-	 * @type array   $screens WP screen IDs to show notice.
-	 *                        Leave empty to show in all pages (not recommended).
-	 * @type string  $cap     User capability to show notice.
-	 *                        Make sure to use proper capability for multisite.
-	 * @type array   $classes Additional class names for notice.
-	 * @type string  $domain  Text domain for translations.
-	 * @type string  $prefix  To override default option prefix.
-	 * }
-	 *
-	 * @since  1.0.0
-	 * @access public
-	 *
-	 * @return Notice
-	 */
-	public static function get( $slug, $name, array $options ) {
-		static $notices = array();
-
-		// Create new instance if not already created.
-		if ( ! isset( $notices[ $slug ] ) || ! $notices[ $slug ] instanceof Notice ) {
-			$notices[ $slug ] = new self( $slug, $name, $options );
-		}
-
-		return $notices[ $slug ];
-	}
-
-	/**
-	 * Render the review notice.
-	 *
-	 * Review notice will be rendered only if all these conditions met:
-	 * > Current screen is an allowed screen (@since  1.0.0
-	 *
-	 * @access public
-	 *
-	 * @see    Noticee::is_capable())
-	 * > It's time to show the notice (@see Noticee::is_time())
-	 * > User has not dismissed the notice (@see Noticee::is_dismissed())
-	 *
-	 * @see    Noticee::in_screen())
-	 * > Current user has the required capability (@return void
-	 */
-	public function render() {
-		// Check conditions.
-		if ( ! $this->can_show() && ! empty( $this->message ) ) {
-			return;
-		}
-		?>
-
-		<div
-			id="duckdev-reviews-<?php echo esc_attr( $this->slug ); ?>"
-			class="<?php echo esc_attr( $this->get_classes() ); ?>">
-			<p>
-				<?php echo $this->message; ?>
-			</p>
-			<?php if ( ! empty( $this->action_labels['review'] ) ) : ?>
-				<p>
-					<a href="https://wordpress.org/support/plugin/<?php echo esc_html( $this->slug ); ?>/reviews/#new-post" target="_blank">
-						→ <?php echo $this->action_labels['review']; ?>
-					</a>
-				</p>
-			<?php endif; ?>
-			<?php if ( ! empty( $this->action_labels['later'] ) ) : ?>
-				<p>
-					<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'later' ) ); ?>">
-						→ <?php echo $this->action_labels['later']; ?>
-					</a>
-				</p>
-			<?php endif; ?>
-			<?php if ( ! empty( $this->action_labels['dismiss'] ) ) : ?>
-				<p>
-					<a href="<?php echo esc_url( add_query_arg( $this->key( 'action' ), 'dismiss' ) ); ?>">
-						→ <?php echo $this->action_labels['dismiss']; ?>
-					</a>
-				</p>
-			<?php endif; ?>
-		</div>
-		<?php
-	}
-
-	/**
-	 * Check if it's time to show the notice.
-	 *
-	 * Based on the day provided, we will check if the current
-	 * timestamp exceeded or reached the notice time.
-	 *
-	 * @since  1.0.0
-	 * @access protected
-	 * @uses   get_site_option()
-	 * @uses   update_site_option()
-	 *
-	 * @return bool
-	 */
-	protected function is_time() {
-		// Get the notice time.
-		$time = get_site_option( $this->key( 'time' ) );
-
-		// If not set, set now and bail.
-		if ( empty( $time ) ) {
-			$time = time() + ( $this->days * DAY_IN_SECONDS );
-			// Set to future.
-			update_site_option( $this->key( 'time' ), $time );
-
-			return true;
-		}
-
-		// Check if time passed or reached.
-		return (int) $time <= time();
-	}
-
-	/**
-	 * Check if the notice is already dismissed.
-	 *
-	 * If a user has dismissed the notice, do not show
-	 * notice to the current user again.
-	 * We store the flag in current user's meta data.
-	 *
-	 * @since  1.0.0
-	 * @access protected
-	 * @uses   get_user_meta()
-	 *
-	 * @return bool
-	 */
-	protected function is_dismissed() {
-		// Get current user.
-		$current_user = wp_get_current_user();
-
-		// Check if current item is dismissed.
-		return (bool) get_user_meta(
-			$current_user->ID,
-			$this->key( 'dismissed' ),
-			true
-		);
-	}
-
-	/**
-	 * Check if current user has the capability.
-	 *
-	 * Before showing and processing the notice actions,
-	 * current user should have the capability to do so.
-	 *
-	 * @since  1.0.0
-	 * @uses   current_user_can()
-	 * @access protected
-	 *
-	 * @return bool
-	 */
-	protected function is_capable() {
-		return current_user_can( $this->cap );
-	}
-
-	/**
-	 * Check if the current screen is allowed.
-	 *
-	 * Make sure the current page's screen ID is in
-	 * allowed IDs list before showing a notice.
-	 * If no screen ID is set, we will allow it in
-	 * all pages (not recommended).
-	 *
-	 * @since  1.0.0
-	 * @access protected
-	 * @uses   get_current_screen()
-	 *
-	 * @return bool
-	 */
-	protected function in_screen() {
-		// If not screen ID is set, show everywhere.
-		if ( empty( $this->screens ) ) {
-			return true;
-		}
-
-		// Get current screen.
-		$screen = get_current_screen();
-
-		// Check if current screen id is allowed.
-		return ! empty( $screen->id ) && in_array( $screen->id, $this->screens, true );
-	}
-
-	/**
-	 * Get the class names for notice div.
-	 *
-	 * Notice is using WordPress admin notices info notice styles.
-	 * You can pass additional class names to customize it for your
-	 * requirements in `classes` option when creating notice instance.
-	 *
-	 * @see    https://developer.wordpress.org/reference/hooks/admin_notices/
-	 *
-	 * @since  1.0.0
-	 * @access protected
-	 *
-	 * @return string
-	 */
-	protected function get_classes() {
-		// Required classes.
-		$classes = array( 'notice', 'notice-info' );
-
-		// Add extra classes.
-		if ( ! empty( $this->classes ) && is_array( $this->classes ) ) {
-			$classes = array_merge( $classes, $this->classes );
-			$classes = array_unique( $classes );
-		}
-
-		return implode( ' ', $classes );
-	}
-
-	/**
-	 * Get the default notice message for the review.
-	 *
-	 * This will be used only if the message is not passed through
-	 * options array. You can also use `duckdev_reviews_notice_message` filter to modify
-	 * the notice message.
-	 * NOTE: We will not escape anything. You should do it yourself if you are adding a
-	 * custom message.
-	 *
-	 * @since  1.0.2
-	 * @access protected
-	 *
-	 * @return string
-	 */
-	protected function get_message() {
-		// Get current user data.
-		$current_user = wp_get_current_user();
-		// Make sure we have name.
-		$name = empty( $current_user->display_name ) ? __( 'friend', $this->domain ) : ucwords( $current_user->display_name );
-
-		$message = sprintf(
-		// translators: %1$s Current user's name, %2$s Plugin name, %3$d.
-			esc_html__( 'Hey %1$s, I noticed you\'ve been using %2$s for more than %3$d days – that’s awesome! Could you please do me a BIG favor and give it a 5-star rating on WordPress? Just to help us spread the word and boost our motivation.', $this->domain ),
-			esc_html( $name ),
-			'<strong>' . esc_html( $this->name ) . '</strong>',
-			(int) $this->days
-		);
-
-		/**
-		 * Filter to modify review notice message.
-		 *
-		 * @param string $message Notice message.
-		 * @param int    $days    Days to show review.
-		 *
-		 * @since 1.0.2
-		 */
-		return apply_filters( 'duckdev_reviews_notice_message', $message, $this->days );
-	}
-
-	/**
-	 * Check if we can show the notice.
-	 *
-	 * > Current screen is an allowed screen (@since  1.0.0
-	 *
-	 * @access protected
-	 *
-	 * @see    Noticee::is_capable())
-	 * > It's time to show the notice (@see Noticee::is_time())
-	 * > User has not dismissed the notice (@see Noticee::is_dismissed())
-	 *
-	 * @see    Noticee::in_screen())
-	 * > Current user has the required capability (@return bool
-	 */
-	protected function can_show() {
-		return (
-			$this->in_screen() &&
-			$this->is_capable() &&
-			$this->is_time() &&
-			! $this->is_dismissed()
-		);
-	}
-
-	/**
-	 * Process the notice actions.
-	 *
-	 * If current user is capable process actions.
-	 * > Later: Extend the time to show the notice.
-	 * > Dismiss: Hide the notice to current user.
-	 *
-	 * @since  1.0.0
-	 * @access protected
+	 * @since 1.0.0
 	 *
 	 * @return void
 	 */
-	protected function actions() {
-		// Only if required.
-		if ( ! $this->in_screen() || ! $this->is_capable() ) {
+	public function render(): void {
+		if ( ! $this->canShow() ) {
 			return;
 		}
 
-		// Get the current review action.
-		$action = filter_input( INPUT_GET, $this->key( 'action' ), FILTER_UNSAFE_RAW );
-
-		switch ( $action ) {
-			case 'later':
-				// Let's show after 2 times of days.
-				$time = time() + ( $this->days * DAY_IN_SECONDS * 2 );
-				update_site_option( $this->key( 'time' ), $time );
-				break;
-			case 'dismiss':
-				// Do not show again to this user.
-				update_user_meta(
-					get_current_user_id(),
-					$this->key( 'dismissed' ),
-					true
-				);
-				break;
-		}
+		$this->renderer->render( $this->config, $this->prefixer );
 	}
 
 	/**
-	 * Setup notice options to initialize class.
+	 * Aggregated show-condition check.
 	 *
-	 * Make sure the required options are set before
-	 * initializing the class.
+	 * Exposed publicly so consumers can drive their own rendering
+	 * pipeline (e.g. AJAX) without re-implementing the gate logic.
 	 *
-	 * @param string $slug    WP.org slug for plugin.
-	 * @param string $name    Name of plugin.
-	 * @param array  $options Array of options (@see Notice::get()).
+	 * Note on ordering: cheaper checks run first so the common case
+	 * (wrong screen) bails before we touch the database.
 	 *
-	 * @since  1.0.0
-	 * @access private
+	 * @since 2.0.0
 	 *
-	 * @return void
+	 * @return bool
 	 */
-	private function setup( $slug, $name, array $options ) {
-		// Plugin name is required.
-		if ( empty( $name ) || empty( $slug ) ) {
-			return;
+	public function canShow(): bool {
+		if ( ! $this->screen->isAllowed( $this->config->screens() ) ) {
+			return false;
 		}
 
-		// Merge options.
-		$options = wp_parse_args(
-			$options,
-			array(
-				'days'          => 7,
-				'screens'       => array(),
-				'cap'           => 'manage_options',
-				'classes'       => array(),
-				'domain'        => 'duckdev',
-				'action_labels' => array(),
-			)
-		);
+		if ( ! $this->capability->can( $this->config->capability() ) ) {
+			return false;
+		}
 
-		// Action button/link labels.
-		$this->action_labels = wp_parse_args(
-			(array) $options['action_labels'],
-			array(
-				'review'  => esc_html__( 'Ok, you deserve it', $this->domain ),
-				'later'   => esc_html__( 'Nope, maybe later', $this->domain ),
-				'dismiss' => esc_html__( 'I already did', $this->domain ),
-			)
-		);
+		if ( ! $this->timer->isDue() ) {
+			return false;
+		}
 
-		// Set options.
-		$this->slug    = (string) $slug;
-		$this->name    = (string) $name;
-		$this->cap     = (string) $options['cap'];
-		$this->days    = (int) $options['days'];
-		$this->screens = (array) $options['screens'];
-		$this->classes = (array) $options['classes'];
-		$this->domain  = (string) $options['domain'];
-		$this->prefix  = isset( $options['prefix'] ) ? (string) $options['prefix'] : str_replace( '-', '_', $this->slug );
-		$this->message = empty( $options['message'] ) ? $this->get_message() : (string) $options['message'];
+		return ! $this->dismissal->isDismissed();
 	}
 
 	/**
-	 * Create key by prefixing option name.
+	 * Access the resolved configuration.
 	 *
-	 * Use this to create proper key for options.
+	 * @since 2.0.0
 	 *
-	 * @param string $key Key.
-	 *
-	 * @since  1.0.0
-	 * @access protected
-	 *
-	 * @return string
+	 * @return Config
 	 */
-	private function key( $key ) {
-		return $this->prefix . '_reviews_' . $key;
+	public function config(): Config {
+		return $this->config;
+	}
+
+	/**
+	 * Access the shared key prefixer.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @return KeyPrefixer
+	 */
+	public function prefixer(): KeyPrefixer {
+		return $this->prefixer;
 	}
 }

@@ -5,52 +5,117 @@
 </p>
 
 # WP Review Notice
-Simple library class to gently ask for a wp.org plugin review after a few days of plugin usage.
+
+[![Tests](https://github.com/duckdev/wp-review-notice/actions/workflows/tests.yml/badge.svg)](https://github.com/duckdev/wp-review-notice/actions/workflows/tests.yml)
+[![PHPCS](https://github.com/duckdev/wp-review-notice/actions/workflows/phpcs.yml/badge.svg)](https://github.com/duckdev/wp-review-notice/actions/workflows/phpcs.yml)
+
+A small, opinionated WordPress library that gently asks for a wp.org plugin review after a few days of usage. Built around a tiny set of focused, swappable collaborators so it stays trivially testable and easy to extend.
 
 ## Installation
-WP Review Notice can be installed using composer:
 
+```bash
+composer require duckdev/wp-review-notice
 ```
-$ composer require duckdev/wp-review-notice
-```
 
-## Usage 📖
+Requires **PHP 7.4+** and WordPress **6.0+**.
 
-### Initialize
+## Quick start
 
-Initialize one notice per plugin.
 ```php
-// Setup notice.
-$notice = \DuckDev\Reviews\Notice::get(
-	'my-plugin', // Plugin slug on wp.org (eg: hello-dolly).
-	'My Plugin', // Plugin name (eg: Hello Dolly).
-	array(
-		'days'          => 7, // default: 7 days.
-		'message'       => 'My custom message asking for review', // If you want to use different review notice message.
-		'action_labels' => array(
-			'review'  => 'Please review me', // Change review link label.
-			'later'   => 'I will review later', // Change review extension link.
-			'dismiss' => 'Nope', // No review label :(.
-		),
-	)
-);
-
-// Render notice.
-$notice->render();
+add_action( 'plugins_loaded', function () {
+    \DuckDev\Reviews\Notice::create(
+        'my-plugin', // wp.org plugin slug (e.g. "hello-dolly").
+        'My Plugin', // Display name shown in the notice copy.
+        array(
+            'days'    => 7,
+            'cap'     => 'manage_options',
+            'screens' => array( 'dashboard', 'plugins' ), // empty = all admin screens.
+        )
+    )->register();
+} );
 ```
-### Options
-You can customize the notice behaviour using options. All these options are optional.
 
-| Option  | Type | Description                                                                                                                                                                                                                                                                                        |
-| ------- | ---- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `days` | int | No. of days after the review is shown.                                                                                                                                                                                                                                                             |
-| `screens` | array| WordPress admin page screen IDs to show notice. If you leave this empty the notice will be added to add admin pages. Strongly recommended to use this option to limit the review notices only within your plugin's admin pages, especially if you are showing notice using `admin_notices` action. |
-| `cap` | string | WordPres user capability to show notice to. Notice will be visible only to user with this capability. Also only users with this capability can dismiss/extend notice.                                                                                                                              |
-| `classes` | array | Additional class names for notice.                                                                                                                                                                                                                                                                 |
-| `domain` | string | Text domain string for internationalization.                                                                                                                                                                                                                                                       |
-| `message` | string | Notice main message (to override default message).                                                                                                                                                                                                                                                 |
-| `action_labels` | array | To use different labels for action links. Available items are: `review`, `later`, `dismiss`. Remember to escape.                                                                                                                                                                                   |
-| `prefix` | string | To override plugin option and other key prefixes. By default it's plugin slug with dashes replaces with underscores.                                                                                                                                                                               |
+`register()` is what hooks `admin_notices` + `admin_init` and seeds the show-time schedule. Calling `create()` without `register()` does nothing — useful for tests or for configuring a notice you want to render manually.
 
-### Credits
-Author - [Joel James](https://duckdev.com)
+## Options
+
+| Key             | Type     | Default               | Description                                                              |
+| --------------- | -------- | --------------------- | ------------------------------------------------------------------------ |
+| `days`          | `int`    | `7`                   | Days to wait before showing the notice for the first time.               |
+| `screens`       | `array`  | `[]`                  | Allowed admin screen IDs. Empty = every admin screen.                    |
+| `cap`           | `string` | `manage_options`      | Capability required to see and act on the notice.                        |
+| `classes`       | `array`  | `[]`                  | Extra CSS classes appended to the `notice notice-info` wrapper.          |
+| `domain`        | `string` | `duckdev`             | Text domain used for the bundled copy.                                   |
+| `message`       | `string` | `''` (auto-generated) | Custom HTML message. Not escaped — sanitise it yourself.                 |
+| `action_labels` | `array`  | bundled labels        | Keys: `review`, `later`, `dismiss`. Set any to `''` to hide that link.   |
+| `prefix`        | `string` | slug with `-` → `_`   | Storage namespace. Defaults preserve the v1 layout on upgrade.           |
+
+## Filters
+
+```php
+add_filter( 'duckdev_reviews_notice_message', function ( $message, $days ) {
+    return "We're glad you've been with us for {$days}+ days!";
+}, 10, 2 );
+```
+
+## Architecture
+
+The library is split into small collaborators, each behind an interface:
+
+```
+Notice (facade, DI container)
+ ├── KeyPrefixer           — "{prefix}_reviews_{key}" namespacing
+ ├── TimerStoreInterface   — when the next show is due  (default: SiteOptionTimerStore)
+ ├── DismissalStoreInterface — per-user dismissal flag  (default: UserMetaDismissalStore)
+ ├── ScreenResolverInterface  — current admin screen check
+ ├── CapabilityCheckerInterface — capability gate
+ ├── ActionRouter          — handles later/dismiss GET dispatch
+ └── RendererInterface     — emits the notice HTML       (default: DefaultRenderer)
+```
+
+Every collaborator is constructor-injectable, so tests (and unusual integrations) can swap any single piece without forking the library.
+
+### Custom storage / rendering
+
+```php
+use DuckDev\Reviews\Notice;
+use DuckDev\Reviews\Support\Config;
+
+$notice = new Notice(
+    Config::fromArray( 'my-plugin', 'My Plugin' ),
+    new MyRedisTimerStore(),       // implements TimerStoreInterface
+    null,                          // default user-meta dismissal
+    null,                          // default admin-screen resolver
+    null,                          // default capability checker
+    new MyBlockEditorRenderer()    // implements RendererInterface
+);
+$notice->register();
+```
+
+## Upgrading from v1
+
+v2 is a clean break — there is no compatibility shim.
+
+| v1                                              | v2                                                          |
+| ----------------------------------------------- | ----------------------------------------------------------- |
+| `Notice::get( $slug, $name, $opts )`            | `Notice::create( $slug, $name, $opts )->register()`         |
+| Constructor auto-registered on `is_admin()`     | `register()` is explicit                                    |
+| Storage keys `{prefix}_reviews_time` etc.       | `{prefix}_time`, `{prefix}_dismissed`, `{prefix}_action`    |
+| Message echoed raw                              | Message run through `wp_kses_post()`                        |
+| `is_time()` mutated storage                     | `isDue()` is a pure read; `start()` seeds on `register()`   |
+
+Existing v1 schedules will be ignored after upgrade (different option key), so users will see the prompt again on the new schedule. If that matters, write a tiny migration in your plugin to rename the option once.
+
+## Development
+
+```bash
+composer install
+composer test    # PHPUnit
+composer phpcs   # WPCS lint
+```
+
+CI runs PHPUnit against PHP 7.4 – 8.3 and WPCS on every push.
+
+## License
+
+GPL-2.0-or-later — see [LICENSE](LICENSE).

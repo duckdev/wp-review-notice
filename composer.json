@@ -1,30 +1,61 @@
 {
   "name": "duckdev/wp-review-notice",
-  "description": "Simple library class to gently ask for a wp.org plugin review after a few days of plugin usage.",
+  "version": "2.0.0",
+  "description": "Simple library to gently ask for a wp.org plugin review after a few days of plugin usage, with swappable storage drivers and a testable, DI-friendly architecture.",
   "license": "GPL-2.0-or-later",
   "type": "library",
   "authors": [
     {
       "name": "Joel James",
       "email": "me@joelsays.com",
-      "homepage": "https://duckdev.com"
+      "homepage": "https://duckdev.com",
+      "role": "Developer"
     }
   ],
   "keywords": [
     "wordpress",
     "reviews",
-    "notices"
+    "notices",
+    "admin"
   ],
+  "homepage": "https://github.com/duckdev/wp-review-notice",
   "support": {
     "issues": "https://github.com/duckdev/wp-review-notice/issues/"
   },
   "require": {
-    "php": ">=5.6"
+    "php": ">=7.4"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.6",
+    "brain/monkey": "^2.6",
+    "wp-coding-standards/wpcs": "^3.1",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "squizlabs/php_codesniffer": "^3.10"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "platform": {
+      "php": "7.4"
+    },
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
   },
   "autoload": {
     "psr-4": {
-      "DuckDev\\Reviews\\": "src"
+      "DuckDev\\Reviews\\": "src/"
     }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "DuckDev\\Reviews\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "phpcs": "phpcs",
+    "phpcbf": "phpcbf"
   },
   "minimum-stability": "dev"
 }

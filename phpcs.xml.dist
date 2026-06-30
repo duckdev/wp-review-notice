@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<ruleset name="DuckDev WP Review Notice">
+	<description>WordPress coding standards adapted for a PSR-4 library.</description>
+
+	<file>src</file>
+	<file>tests</file>
+
+	<arg name="basepath" value="."/>
+	<arg name="colors"/>
+	<arg name="extensions" value="php"/>
+	<arg value="sp"/>
+	<arg name="parallel" value="8"/>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>tests/Stubs/*</exclude-pattern>
+
+	<config name="minimum_supported_wp_version" value="6.0"/>
+	<config name="testVersion" value="7.4-"/>
+
+	<rule ref="WordPress">
+		<!-- PSR-4 file/folder layout — class files are PascalCase, not class-foo.php. -->
+		<exclude name="WordPress.Files.FileName"/>
+
+		<!-- Library exposes camelCase method names by design. -->
+		<exclude name="WordPress.NamingConventions.ValidVariableName"/>
+
+		<!-- Library has no text domain; host plugins translate. -->
+		<exclude name="WordPress.WP.I18n.TextDomainMismatch"/>
+		<exclude name="WordPress.WP.I18n.MissingArgDomain"/>
+
+		<!-- Renderer intentionally echoes pre-built HTML (see DefaultRenderer docblock). -->
+		<exclude name="WordPress.Security.EscapeOutput"/>
+	</rule>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+	<!-- Tests can use looser conventions. -->
+	<rule ref="WordPress.NamingConventions.ValidFunctionName">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Files.OneObjectStructurePerFile">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.CodeAnalysis.EmptyStatement">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.PHP.DevelopmentFunctions">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FunctionComment">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.FileComment">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.ClassComment">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Squiz.Commenting.VariableComment">
+		<exclude-pattern>tests/*</exclude-pattern>
+	</rule>
+</ruleset>
