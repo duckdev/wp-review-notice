@@ -48,7 +48,7 @@ add_action( 'plugins_loaded', function () {
 | `domain`        | `string` | `duckdev`             | Text domain used for the bundled copy.                                   |
 | `message`       | `string` | `''` (auto-generated) | Custom HTML message. Not escaped — sanitise it yourself.                 |
 | `action_labels` | `array`  | bundled labels        | Keys: `review`, `later`, `dismiss`. Set any to `''` to hide that link.   |
-| `prefix`        | `string` | slug with `-` → `_`   | Storage namespace. Defaults preserve the v1 layout on upgrade.           |
+| `prefix`        | `string` | slug with `-` → `_`   | Storage namespace. Keys are written as `{prefix}_review_{key}`.          |
 
 ## Filters
 
@@ -64,7 +64,7 @@ The library is split into small collaborators, each behind an interface:
 
 ```
 Notice (facade, DI container)
- ├── KeyPrefixer           — "{prefix}_reviews_{key}" namespacing
+ ├── KeyPrefixer           — "{prefix}_review_{key}" namespacing
  ├── TimerStoreInterface   — when the next show is due  (default: SiteOptionTimerStore)
  ├── DismissalStoreInterface — per-user dismissal flag  (default: UserMetaDismissalStore)
  ├── ScreenResolverInterface  — current admin screen check
@@ -100,7 +100,7 @@ v2 is a clean break — there is no compatibility shim.
 | ----------------------------------------------- | ----------------------------------------------------------- |
 | `Notice::get( $slug, $name, $opts )`            | `Notice::create( $slug, $name, $opts )->register()`         |
 | Constructor auto-registered on `is_admin()`     | `register()` is explicit                                    |
-| Storage keys `{prefix}_reviews_time` etc.       | `{prefix}_time`, `{prefix}_dismissed`, `{prefix}_action`    |
+| Storage keys `{prefix}_reviews_time` etc.       | `{prefix}_review_time`, `{prefix}_review_dismissed`, `{prefix}_review_action` |
 | Message echoed raw                              | Message run through `wp_kses_post()`                        |
 | `is_time()` mutated storage                     | `isDue()` is a pure read; `start()` seeds on `register()`   |
 

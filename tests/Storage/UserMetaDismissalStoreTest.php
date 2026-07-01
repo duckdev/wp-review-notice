@@ -24,14 +24,14 @@ final class UserMetaDismissalStoreTest extends TestCase {
 
 	public function test_is_dismissed_reads_user_meta(): void {
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 5 );
-		Functions\expect( 'get_user_meta' )->once()->with( 5, 'p_dismissed', true )->andReturn( '1' );
+		Functions\expect( 'get_user_meta' )->once()->with( 5, 'p_review_dismissed', true )->andReturn( '1' );
 
 		$this->assertTrue( $this->store()->is_dismissed() );
 	}
 
 	public function test_dismiss_writes_user_meta(): void {
 		Functions\expect( 'get_current_user_id' )->once()->andReturn( 5 );
-		Functions\expect( 'update_user_meta' )->once()->with( 5, 'p_dismissed', true )->andReturn( true );
+		Functions\expect( 'update_user_meta' )->once()->with( 5, 'p_review_dismissed', true )->andReturn( true );
 
 		$this->store()->dismiss();
 	}

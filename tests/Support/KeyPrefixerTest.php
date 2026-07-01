@@ -14,9 +14,9 @@ final class KeyPrefixerTest extends TestCase {
 		$prefixer = new KeyPrefixer( 'my_plugin' );
 
 		$this->assertSame( 'my_plugin', $prefixer->prefix() );
-		$this->assertSame( 'my_plugin_time', $prefixer->key( 'time' ) );
-		$this->assertSame( 'my_plugin_dismissed', $prefixer->key( 'dismissed' ) );
-		$this->assertSame( 'my_plugin_action', $prefixer->key( 'action' ) );
+		$this->assertSame( 'my_plugin_review_time', $prefixer->key( 'time' ) );
+		$this->assertSame( 'my_plugin_review_dismissed', $prefixer->key( 'dismissed' ) );
+		$this->assertSame( 'my_plugin_review_action', $prefixer->key( 'action' ) );
 	}
 
 	public function test_trims_prefix(): void {

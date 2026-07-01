@@ -16,17 +16,17 @@ final class SiteOptionTimerStoreTest extends TestCase {
 	}
 
 	public function test_start_seeds_schedule_when_unset(): void {
-		Functions\expect( 'get_site_option' )->once()->with( 'p_time' )->andReturn( false );
+		Functions\expect( 'get_site_option' )->once()->with( 'p_review_time' )->andReturn( false );
 		Functions\expect( 'update_site_option' )
 			->once()
-			->with( 'p_time', \Mockery::type( 'int' ) )
+			->with( 'p_review_time', \Mockery::type( 'int' ) )
 			->andReturn( true );
 
 		$this->store()->start( 7 );
 	}
 
 	public function test_start_is_noop_when_already_seeded(): void {
-		Functions\expect( 'get_site_option' )->once()->with( 'p_time' )->andReturn( time() + 1000 );
+		Functions\expect( 'get_site_option' )->once()->with( 'p_review_time' )->andReturn( time() + 1000 );
 		Functions\expect( 'update_site_option' )->never();
 
 		$this->store()->start( 7 );
@@ -61,7 +61,7 @@ final class SiteOptionTimerStoreTest extends TestCase {
 		Functions\expect( 'update_site_option' )
 			->once()
 			->with(
-				'p_time',
+				'p_review_time',
 				\Mockery::on(
 					static function ( $value ) {
 						return is_int( $value ) && $value > time();

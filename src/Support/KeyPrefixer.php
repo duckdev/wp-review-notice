@@ -7,13 +7,13 @@
  * means:
  *
  *   - Two plugins consuming this library on the same site never
- *     collide on `*_reviews_time` or `*_reviews_dismissed`.
- *   - The "{prefix}_reviews_{key}" convention from v1 is preserved
- *     verbatim, so v1 → v2 upgrades pick up existing schedules and
- *     per-user dismissals without resetting anyone's timer.
+ *     collide on `*_review_time` or `*_review_dismissed`.
+ *   - Keys carry a reserved `_review_` segment so they never clash
+ *     with unrelated plugin options that happen to share the same
+ *     consumer prefix (e.g. `loggedin_settings`).
  *   - Storage drivers stay storage-agnostic: they receive a prefixer
  *     and ask it for the final key, instead of hard-coding the
- *     reserved `_reviews_` segment themselves.
+ *     reserved `_review_` segment themselves.
  *
  * Pure value object — no WordPress calls — so it's trivial to unit
  * test in isolation.
@@ -87,9 +87,10 @@ class KeyPrefixer {
 	/**
 	 * Build a fully-qualified key.
 	 *
-	 * Format: `{prefix}_{name}`. The prefix is the only namespacing
-	 * the library cares about — consumers that share the library
-	 * across multiple notices give each one a distinct prefix.
+	 * Format: `{prefix}_review_{name}`. The `_review_` segment is
+	 * reserved so consumer prefixes (typically the plugin slug) can
+	 * be reused for the plugin's own options without colliding with
+	 * anything the library writes.
 	 *
 	 * @since 2.0.0
 	 *
@@ -98,6 +99,6 @@ class KeyPrefixer {
 	 * @return string
 	 */
 	public function key( string $name ): string {
-		return $this->prefix . '_' . $name;
+		return $this->prefix . '_review_' . $name;
 	}
 }
