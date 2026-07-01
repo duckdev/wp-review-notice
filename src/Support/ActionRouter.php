@@ -14,6 +14,13 @@
  *     a stray GET param from a low-privilege user can't bump the
  *     timer for everyone on the site.
  *
+ * Note: screen scoping intentionally does NOT apply here. `admin_init`
+ * fires before `get_current_screen()` has been populated for the
+ * target page, so gating on the current screen would drop every
+ * click coming from an allow-listed page. Capability + a
+ * consumer-namespaced param name are enough — the worst a hostile
+ * URL can do is act on behalf of the clicker themselves.
+ *
  * @link       https://duckdev.com/
  * @license    http://www.gnu.org/licenses/ GNU General Public License
  * @author     Joel James <me@joelsays.com>
@@ -29,7 +36,6 @@ defined( 'WPINC' ) || die;
 
 use DuckDev\Reviews\Contracts\CapabilityCheckerInterface;
 use DuckDev\Reviews\Contracts\DismissalStoreInterface;
-use DuckDev\Reviews\Contracts\ScreenResolverInterface;
 use DuckDev\Reviews\Contracts\TimerStoreInterface;
 
 /**
@@ -74,16 +80,6 @@ class ActionRouter {
 	private DismissalStoreInterface $dismissal;
 
 	/**
-	 * Screen resolver — gate the action to the same screens the
-	 * notice is allowed to render on.
-	 *
-	 * @since 2.0.0
-	 *
-	 * @var ScreenResolverInterface
-	 */
-	private ScreenResolverInterface $screen;
-
-	/**
 	 * Capability checker — gate the action to authorised users.
 	 *
 	 * @since 2.0.0
@@ -101,7 +97,6 @@ class ActionRouter {
 	 * @param KeyPrefixer                $prefixer   Shared key prefixer.
 	 * @param TimerStoreInterface        $timer      Timer store.
 	 * @param DismissalStoreInterface    $dismissal  Dismissal store.
-	 * @param ScreenResolverInterface    $screen     Current-screen resolver.
 	 * @param CapabilityCheckerInterface $capability Capability checker.
 	 */
 	public function __construct(
@@ -109,14 +104,12 @@ class ActionRouter {
 		KeyPrefixer $prefixer,
 		TimerStoreInterface $timer,
 		DismissalStoreInterface $dismissal,
-		ScreenResolverInterface $screen,
 		CapabilityCheckerInterface $capability
 	) {
 		$this->config     = $config;
 		$this->prefixer   = $prefixer;
 		$this->timer      = $timer;
 		$this->dismissal  = $dismissal;
-		$this->screen     = $screen;
 		$this->capability = $capability;
 	}
 
@@ -131,10 +124,6 @@ class ActionRouter {
 	 * @return void
 	 */
 	public function dispatch(): void {
-		if ( ! $this->screen->is_allowed( $this->config->screens() ) ) {
-			return;
-		}
-
 		if ( ! $this->capability->can( $this->config->capability() ) ) {
 			return;
 		}

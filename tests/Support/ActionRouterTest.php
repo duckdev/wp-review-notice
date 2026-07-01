@@ -6,7 +6,6 @@ namespace DuckDev\Reviews\Tests\Support;
 
 use DuckDev\Reviews\Contracts\CapabilityCheckerInterface;
 use DuckDev\Reviews\Contracts\DismissalStoreInterface;
-use DuckDev\Reviews\Contracts\ScreenResolverInterface;
 use DuckDev\Reviews\Contracts\TimerStoreInterface;
 use DuckDev\Reviews\Support\ActionRouter;
 use DuckDev\Reviews\Support\Config;
@@ -28,17 +27,8 @@ final class ActionRouterTest extends TestCase {
 	private function router(
 		TimerStoreInterface $timer,
 		DismissalStoreInterface $dismissal,
-		bool $screen_allowed = true,
 		bool $can = true
 	): ActionRouter {
-		$screen = new class( $screen_allowed ) implements ScreenResolverInterface {
-			private bool $allowed;
-			public function __construct( bool $allowed ) {
-				$this->allowed = $allowed; }
-			public function is_allowed( array $allowed ): bool {
-				return $this->allowed; }
-		};
-
 		$capability = new class( $can ) implements CapabilityCheckerInterface {
 			private bool $can;
 			public function __construct( bool $can ) {
@@ -47,7 +37,7 @@ final class ActionRouterTest extends TestCase {
 				return $this->can; }
 		};
 
-		return new ActionRouter( $this->config, $this->prefixer, $timer, $dismissal, $screen, $capability );
+		return new ActionRouter( $this->config, $this->prefixer, $timer, $dismissal, $capability );
 	}
 
 	private function spyStores(): array {
@@ -108,18 +98,7 @@ final class ActionRouterTest extends TestCase {
 		[ $timer, $dismissal ]                    = $this->spyStores();
 		$_GET[ $this->prefixer->key( 'action' ) ] = 'dismiss';
 
-		$this->router( $timer, $dismissal, true, false )->dispatch();
-
-		$this->assertFalse( $dismissal->dismissed );
-
-		unset( $_GET[ $this->prefixer->key( 'action' ) ] );
-	}
-
-	public function test_dispatch_gated_by_screen(): void {
-		[ $timer, $dismissal ]                    = $this->spyStores();
-		$_GET[ $this->prefixer->key( 'action' ) ] = 'dismiss';
-
-		$this->router( $timer, $dismissal, false, true )->dispatch();
+		$this->router( $timer, $dismissal, false )->dispatch();
 
 		$this->assertFalse( $dismissal->dismissed );
 

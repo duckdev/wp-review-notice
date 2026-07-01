@@ -88,27 +88,37 @@ class DefaultRenderer implements RendererInterface {
 			<p>
 				<?php echo wp_kses_post( $message ); ?>
 			</p>
-			<?php if ( ! empty( $labels['review'] ) ) : ?>
-				<p>
-					<a href="<?php echo esc_url( $review_url ); ?>" target="_blank">
-						→ <?php echo esc_html( $labels['review'] ); ?>
-					</a>
-				</p>
-			<?php endif; ?>
-			<?php if ( ! empty( $labels['later'] ) ) : ?>
-				<p>
-					<a href="<?php echo esc_url( add_query_arg( $action_key, 'later' ) ); ?>">
-						→ <?php echo esc_html( $labels['later'] ); ?>
-					</a>
-				</p>
-			<?php endif; ?>
-			<?php if ( ! empty( $labels['dismiss'] ) ) : ?>
-				<p>
-					<a href="<?php echo esc_url( add_query_arg( $action_key, 'dismiss' ) ); ?>">
-						→ <?php echo esc_html( $labels['dismiss'] ); ?>
-					</a>
-				</p>
-			<?php endif; ?>
+			<?php
+			$links = array();
+
+			if ( ! empty( $labels['review'] ) ) {
+				$links[] = sprintf(
+					'<a href="%s" target="_blank"><strong>%s</strong></a>',
+					esc_url( $review_url ),
+					esc_html( $labels['review'] )
+				);
+			}
+
+			if ( ! empty( $labels['later'] ) ) {
+				$links[] = sprintf(
+					'<a href="%s">%s</a>',
+					esc_url( add_query_arg( $action_key, 'later' ) ),
+					esc_html( $labels['later'] )
+				);
+			}
+
+			if ( ! empty( $labels['dismiss'] ) ) {
+				$links[] = sprintf(
+					'<a href="%s">%s</a>',
+					esc_url( add_query_arg( $action_key, 'dismiss' ) ),
+					esc_html( $labels['dismiss'] )
+				);
+			}
+
+			if ( ! empty( $links ) ) {
+				echo '<p>' . implode( ' &nbsp;&middot;&nbsp; ', $links ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- individual links are escaped above.
+			}
+			?>
 		</div>
 		<?php
 	}

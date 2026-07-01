@@ -171,7 +171,6 @@ class Notice {
 			$this->prefixer,
 			$this->timer,
 			$this->dismissal,
-			$this->screen,
 			$this->capability
 		);
 	}
