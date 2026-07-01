@@ -11,6 +11,8 @@
 
 A small, opinionated WordPress library that gently asks for a wp.org plugin review after a few days of usage. Built around a tiny set of focused, swappable collaborators so it stays trivially testable and easy to extend.
 
+📖 **Full documentation:** [docs.duckdev.com/wp-libraries/wp-review-notice](https://docs.duckdev.com/wp-libraries/wp-review-notice)
+
 ## Installation
 
 ```bash
